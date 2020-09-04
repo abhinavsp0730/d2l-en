@@ -48,6 +48,13 @@ import torch
 from torch import nn
 ```
 
+```{.python .input  n=2}
+#@tab tensorflow
+from d2l import tensorflow as d2l
+import math
+import tensorflow as tf
+```
+
 The masked softmax takes a 3-dimensional input and enables us to filter out some elements by specifying a valid length for the last dimension. (Refer to
 :numref:`sec_machine_translation` for the definition of a valid length.) As a result, any value outside the valid length will be masked as $0$. Let us implement the `masked_softmax` function.
 
@@ -77,7 +84,7 @@ def masked_softmax(X, valid_len):
     """Perform softmax by filtering out some elements."""
     # X: 3-D tensor, valid_len: 1-D or 2-D tensor
     if valid_len is None:
-        return nn.functional.softmax(X, dim=-1)
+        return tf.keras.layers.Softmax(X)
     else:
         shape = X.shape
         if valid_len.dim() == 1:
@@ -85,6 +92,26 @@ def masked_softmax(X, valid_len):
                                                 dim=0)
         else:
             valid_len = valid_len.reshape(-1)
+        # Fill masked elements with a large negative, whose exp is 0
+        X = d2l.sequence_mask(X.reshape(-1, shape[-1]), valid_len, value=-1e6)
+        return nn.functional.softmax(X.reshape(shape), dim=-1)
+```
+
+```{.python .input}
+#@tab tensorflow
+#@save
+def masked_softmax(X, valid_len):
+    """Perform softmax by filtering out some elements."""
+    # X: 3-D tensor, valid_len: 1-D or 2-D tensor
+    if valid_len is None:
+        return nn.functional.softmax(X, dim=-1)
+    else:
+        shape = X.shape
+        if tf.math.equal(tf.size(X), 1):
+            valid_len = tf.repeat(valid_len, repeats=shape[1], axis=0)
+           
+        else:
+            valid_len = 
         # Fill masked elements with a large negative, whose exp is 0
         X = d2l.sequence_mask(X.reshape(-1, shape[-1]), valid_len, value=-1e6)
         return nn.functional.softmax(X.reshape(shape), dim=-1)
@@ -99,6 +126,29 @@ masked_softmax(np.random.uniform(size=(2, 2, 4)), np.array([2, 3]))
 ```{.python .input}
 #@tab pytorch
 masked_softmax(torch.rand(2, 2, 4), torch.tensor([2, 3]))
+```
+
+```{.python .input}
+#@tab tensorflow
+masked_softmax(tf.random.uniform(shape=(2, 2, 4), tf.constant([2, 3]))
+```
+
+```{.python .input  n=9}
+X = tf.constant([2, 3, 4])
+tf.math.equal(tf.size(X), 3)
+```
+
+```{.json .output n=9}
+[
+ {
+  "data": {
+   "text/plain": "<tf.Tensor: shape=(), dtype=bool, numpy=True>"
+  },
+  "execution_count": 9,
+  "metadata": {},
+  "output_type": "execute_result"
+ }
+]
 ```
 
 Moreover, the second operator `batch_dot` takes two inputs $X$ and $Y$ with shapes $(b, n, m)$ and $(b, m, k)$, respectively, and returns an output with shape $(b, n, k)$. To be specific, it computes $b$ dot products for $i= \{1,\ldots, b\}$, i.e.,
